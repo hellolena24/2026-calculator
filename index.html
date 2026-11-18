@@ -29,42 +29,197 @@
             <div class="row">
                 <button class="function">▶</button>
                 <button class="function">AC</button>
-                <button class="function">%</button>
-                <button class="function">/</button>
+                <button class="function" data-symbol="%">%</button>
+                <button class="function" data-symbol="/">/</button>
             </div>
 
             <div class="row">
-                <button>7</button>
-                <button>8</button>
-                <button>9</button>
-                <button class="function">x</button>
+                <button class="num" data-num="7">7</button>
+                <button class="num" data-num="8">8</button>
+                <button class="num" data-num="9">9</button>
+                <button class="function" data-symbol="x">x</button>
             </div>
             <div class="row">
-                <button>4</button>
-                <button>5</button>
-                <button>6</button>
-                <button class="function">-</button>
+                <button class="num" data-num="4">4</button>
+                <button class="num" data-num="5">5</button>
+                <button class="num" data-num="6">6</button>
+                <button class="function" data-symbol="-">-</button>
             </div>
             <div class="bottom">
                 <div class="bottom-left">
                     <div class="row">
-                        <button>1</button>
-                        <button>2</button>
-                        <button>3</button>
+                        <button class="num" data-num="1">1</button>
+                        <button class="num" data-num="2">2</button>
+                        <button class="num" data-num="3">3</button>
                     </div>
                     <div class="row">
-                        <button>0</button>
+                        <button class="num" data-num="0">0</button>
                         <button>.</button>
-                        <button class="equal">=</button>
+                        <button class="equal" data-symbol="=">=</button>
                     </div>
                 </div>
-                <button class="function plus">+</button>
+                <button class="function plus" data-symbol="+">+</button>
             </div>
         </div>
 
     </div>
 </body>
 <script>
-    const 
+    const screen = document.querySelector('.screen');
+    const buttons = document.querySelectorAll('.calculator button');
+
+    let num_temp = '';    // 目前輸入的數字
+    let num_01 = '';      // 第一個數字
+    let num_symbol = '';  // 運算符號
+    let step = 1;         // 1：第一個數字、2：第二個數字、3：計算完成
+
+    // 清除所有計算資料
+    function reset() {
+        num_temp = '';
+        num_01 = '';
+        num_symbol = '';
+        step = 1;
+    }
+
+    // 更新螢幕
+    function showScreen() {
+        if (step === 2) {
+            screen.textContent =
+                num_01 + ' ' + num_symbol + ' ' + num_temp;
+        } else {
+            screen.textContent = num_temp || '0';
+        }
+    }
+
+    // 計算結果，成功回傳 true，失敗回傳 false
+    function calculate() {
+        // 還沒輸入第二個數字，就先不計算
+        if (step !== 2 || num_temp === '') {
+            return false;
+        }
+
+        const a = Number(num_01);
+        const b = Number(num_temp);
+        let total = 0;
+
+        if (num_symbol === '+') {
+            total = a + b;
+        } else if (num_symbol === '-') {
+            total = a - b;
+        } else if (num_symbol === 'x') {
+            total = a * b;
+        } else if (num_symbol === '/') {
+            total = a / b;
+        } else if (num_symbol === '%') {
+            total = a % b;
+        }
+
+        // 處理除以 0 等無法計算的情況
+        if (!Number.isFinite(total)) {
+            reset();
+            screen.textContent = '錯誤';
+            return false;
+        }
+
+        // 減少小數計算時出現的誤差
+        num_temp = String(Number(total.toPrecision(12)));
+        num_01 = '';
+        num_symbol = '';
+        step = 3;
+
+        showScreen();
+        return true;
+    }
+
+    // 為每一顆按鈕加入點擊功能
+    for (let i = 0; i < buttons.length; i++) {
+        buttons[i].addEventListener('click', function () {
+            const value = buttons[i].textContent.trim();
+
+            // 1.數字按鈕
+            if (buttons[i].classList.contains('num')) {
+                // 計算完成後按數字，開始新的一次計算
+                if (step === 3) {
+                    reset();
+                }
+
+                // 避免開頭出現一連串的 0
+                if (num_temp === '0') {
+                    num_temp = value;
+                } else {
+                    num_temp += value;
+                }
+
+                showScreen();
+            }
+
+            // 2.小數點
+            else if (value === '.') {
+                if (step === 3) {
+                    reset();
+                }
+
+                // 一個數字只能有一個小數點
+                if (!num_temp.includes('.')) {
+                    if (num_temp === '') {
+                        num_temp = '0';
+                    }
+
+                    num_temp += '.';
+                }
+
+                showScreen();
+            }
+
+            // 3.全部清除
+            else if (value === 'AC') {
+                reset();
+                showScreen();
+            }
+
+            // 4.刪除最後一位
+            else if (value === '▶') {
+                if (step === 3) {
+                    step = 1;
+                }
+
+                num_temp = num_temp.slice(0, -1);
+
+                if (num_temp === '-') {
+                    num_temp = '';
+                }
+
+                showScreen();
+            }
+
+            // 5.等號
+            else if (value === '=') {
+                calculate();
+            }
+
+            // 6.加、減、乘、除、取餘數
+            else if (['+', '-', 'x', '/', '%'].includes(value)) {
+                // 已輸入第二個數字時，先算出前一段結果
+                if (step === 2 && num_temp !== '') {
+                    if (!calculate()) {
+                        return;
+                    }
+                }
+
+                // 連續按符號時，替換目前的符號
+                if (step === 2) {
+                    num_symbol = value;
+                } else {
+                    num_01 = num_temp || '0';
+                    num_symbol = value;
+                    num_temp = '';
+                    step = 2;
+                }
+
+                showScreen();
+            }
+        });
+    }
 </script>
+
 </html>
